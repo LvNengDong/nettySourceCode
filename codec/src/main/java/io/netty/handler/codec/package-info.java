@@ -1,22 +1,13 @@
-/*
- * Copyright 2012 The Netty Project
- *
- * The Netty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
-
 /**
  * Extensible decoder and its common implementations which deal with the
  * packet fragmentation and reassembly issue found in a stream-based transport
  * such as TCP/IP.
+ *
+ * 该项目实现了Netty 架构图中的 Protocol Support 。
+ *
+ * codec 项目，该项目是协议编解码的抽象与部分实现：JSON、Google Protocol、Base64、XML 等等。
+ *
+ * 另外，它提供了多个子项目，实现不同协议的编解码。例如：codec-dns、codec-haproxy、codec-http、
+ * codec-http2、codec-mqtt、codec-redis、codec-memcached、codec-smtp、codec-socks、codec-stomp、codec-xml 等等。
  */
 package io.netty.handler.codec;

@@ -36,6 +36,9 @@ import static io.netty.util.internal.StringUtil.NEWLINE;
 /**
  * A {@link ChannelHandler} that logs all events using a logging framework.
  * By default, all events are logged at <tt>DEBUG</tt> level and full hex dumps are recorded for ByteBufs.
+ *
+ * Channel 的处理器，ChannelHandler 的实现类，
+ * LoggingHandler 的作用是：用于打印服务端的每个事件
  */
 @Sharable
 @SuppressWarnings({ "StringConcatenationInsideStringBufferAppend", "StringBufferReplaceableByString" })
