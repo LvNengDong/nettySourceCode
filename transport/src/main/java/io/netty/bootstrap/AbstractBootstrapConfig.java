@@ -1,18 +1,3 @@
-/*
- * Copyright 2016 The Netty Project
- *
- * The Netty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
 package io.netty.bootstrap;
 
 import io.netty.channel.Channel;
@@ -27,55 +12,42 @@ import java.net.SocketAddress;
 import java.util.Map;
 
 /**
- * Exposes the configuration of an {@link AbstractBootstrap}.
+ * 每个 Config 类，对应一个 Bootstrap 类
  */
 public abstract class AbstractBootstrapConfig<B extends AbstractBootstrap<B, C>, C extends Channel> {
 
+    /**
+     * 对应的 AbstractBootstrap 启动类对象。
+     *
+     * 组合模式：在每个方法中，我们可以看到，都是直接调用 boostrap 属性对应的方法，读取对应的配置。
+     * */
     protected final B bootstrap;
 
     protected AbstractBootstrapConfig(B bootstrap) {
         this.bootstrap = ObjectUtil.checkNotNull(bootstrap, "bootstrap");
     }
 
-    /**
-     * Returns the configured local address or {@code null} if non is configured yet.
-     */
     public final SocketAddress localAddress() {
         return bootstrap.localAddress();
     }
 
-    /**
-     * Returns the configured {@link ChannelFactory} or {@code null} if non is configured yet.
-     */
     @SuppressWarnings("deprecation")
     public final ChannelFactory<? extends C> channelFactory() {
         return bootstrap.channelFactory();
     }
 
-    /**
-     * Returns the configured {@link ChannelHandler} or {@code null} if non is configured yet.
-     */
     public final ChannelHandler handler() {
         return bootstrap.handler();
     }
 
-    /**
-     * Returns a copy of the configured options.
-     */
     public final Map<ChannelOption<?>, Object> options() {
         return bootstrap.options();
     }
 
-    /**
-     * Returns a copy of the configured attributes.
-     */
     public final Map<AttributeKey<?>, Object> attrs() {
         return bootstrap.attrs();
     }
 
-    /**
-     * Returns the configured {@link EventLoopGroup} or {@code null} if non is configured yet.
-     */
     @SuppressWarnings("deprecation")
     public final EventLoopGroup group() {
         return bootstrap.group();

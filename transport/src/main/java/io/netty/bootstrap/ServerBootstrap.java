@@ -38,6 +38,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     private final Map<AttributeKey<?>, Object> childAttrs = new ConcurrentHashMap<AttributeKey<?>, Object>();
     private final ServerBootstrapConfig config = new ServerBootstrapConfig(this);
     private volatile EventLoopGroup childGroup;
+
+    /* 设置连入服务端的 Client 的 SocketChannel 的处理器 */
     private volatile ChannelHandler childHandler;
 
     public ServerBootstrap() { }
@@ -106,7 +108,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
     }
 
     /**
-     * Set the {@link ChannelHandler} which is used to serve the request for the {@link Channel}'s.
+     * 设置连入服务端的 Client 的 SocketChannel 的处理器
      */
     public ServerBootstrap childHandler(ChannelHandler childHandler) {
         this.childHandler = ObjectUtil.checkNotNull(childHandler, "childHandler");
@@ -115,20 +117,21 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 
     @Override
     void init(Channel channel) {
-        setChannelOptions(channel, newOptionsArray(), logger);
-        setAttributes(channel, newAttributesArray());
-
+        setChannelOptions(channel, newOptionsArray(), logger); // 设置 Socket 参数
+        setAttributes(channel, newAttributesArray()); // 保存用户自定义属性
         ChannelPipeline p = channel.pipeline();
 
+        // 获取 ServerBootstrapAcceptor 的构造参数
         final EventLoopGroup currentChildGroup = childGroup;
         final ChannelHandler currentChildHandler = childHandler;
         final Entry<ChannelOption<?>, Object>[] currentChildOptions = newOptionsArray(childOptions);
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs = newAttributesArray(childAttrs);
         final Collection<ChannelInitializerExtension> extensions = getInitializerExtensions();
 
+        // 添加特殊的 Handler 处理器
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
-            public void initChannel(final Channel ch) {
+            public void initChannel(final Channel ch) { // 添加 ServerSocketChannel 对应的 Handler
                 final ChannelPipeline pipeline = ch.pipeline();
                 ChannelHandler handler = config.handler();
                 if (handler != null) {
@@ -138,13 +141,11 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 ch.eventLoop().execute(new Runnable() {
                     @Override
                     public void run() {
-                        pipeline.addLast(new ServerBootstrapAcceptor(
-                                ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs,
-                                extensions));
-                    }
+                        pipeline.addLast(new ServerBootstrapAcceptor(ch, currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs, extensions));}
                 });
             }
         });
+
         if (!extensions.isEmpty() && channel instanceof ServerChannel) {
             ServerChannel serverChannel = (ServerChannel) channel;
             for (ChannelInitializerExtension extension : extensions) {

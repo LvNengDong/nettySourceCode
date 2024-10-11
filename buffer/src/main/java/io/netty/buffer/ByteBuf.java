@@ -1,18 +1,3 @@
-/*
- * Copyright 2012 The Netty Project
- *
- * The Netty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
 package io.netty.buffer;
 
 import io.netty.util.ByteProcessor;
@@ -248,24 +233,70 @@ import java.nio.charset.UnsupportedCharsetException;
 public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf>, ByteBufConvertible {
 
     /**
-     * Returns the number of bytes (octets) this buffer can contain.
+     * 基本属性查询方法：
+     *      int capacity(): 返回 ByteBuf 的容量。
+     *      int maxCapacity(): 返回 ByteBuf 的最大容量。
+     *      ByteBuf capacity(int newCapacity): 设置 ByteBuf 的容量。如果新容量大于当前容量，可能会触发扩容操作。
+     *      int readerIndex(): 返回读索引。
+     *      ByteBuf readerIndex(int readerIndex): 设置读索引。
+     *      int writerIndex(): 返回写索引。
+     *      ByteBuf writerIndex(int writerIndex): 设置写索引。
+     *
+     * 读写状态查询方法：
+     *      boolean isReadable(): 检查 ByteBuf 是否可读。
+     *      boolean isWritable(): 检查 ByteBuf 是否可写。
+     *      int readableBytes(): 返回可读字节数。
+     *      int writableBytes(): 返回可写字节数。
+     *
+     * 数据读取方法：
+     *      byte getByte(int index): 读取指定索引位置的字节，不改变读索引。
+     *      short getShort(int index): 读取指定索引位置的短整型数据，不改变读索引。
+     *      int getMedium(int index): 读取指定索引位置的中等长度整数，不改变读索引。
+     *      long getLong(int index): 读取指定索引位置的长整型数据，不改变读索引。
+     *      ByteBuf getBytes(int index, ByteBuf dst): 读取数据到另一个 ByteBuf。
+     *      ByteBuf getBytes(int index, byte[] dst): 读取数据到字节数组。
+     *      X getBytes(int index, Class<X> dataType): 读取数据并转换为指定类型的集合。
+     *
+     * 数据写入方法：
+     *      ByteBuf setByte(int index, int value): 将指定索引位置的字节设置为新值，不改变写索引。
+     *      ByteBuf setShort(int index, int value): 将指定索引位置的短整型数据设置为新值，不改变写索引。
+     *      ByteBuf setMedium(int index, int value): 将指定索引位置的中等长度整数设置为新值，不改变写索引。
+     *      ByteBuf setLong(int index, long value): 将指定索引位置的长整型数据设置为新值，不改变写索引。
+     *      ByteBuf setBytes(int index, ByteBuf src): 将数据从另一个 ByteBuf 写入，不改变写索引。
+     *      ByteBuf setBytes(int index, byte[] src): 将数据从字节数组写入，不改变写索引。
+     *      X setBytes(int index, Class<X> dataType, X value): 将数据写入并转换为指定类型的集合。
+     *
+     * 数据读取与写入方法（改变索引）：
+     *      byte readByte(): 从当前读索引读取一个字节，并递增读索引。
+     *      short readShort(): 从当前读索引读取一个短整型数据，并递增读索引。
+     *      int readMedium(): 从当前读索引读取一个中等长度整数，并递增读索引。
+     *      long readLong(): 从当前读索引读取一个长整型数据，并递增读索引。
+     *      ByteBuf readBytes(int length): 从当前读索引读取指定长度的数据，并递增读索引。
+     *      ByteBuf writeByte(int value): 在当前写索引写入一个字节，并递增写索引。
+     *      ByteBuf writeShort(int value): 在当前写索引写入一个短整型数据，并递增写索引。
+     *      ByteBuf writeMedium(int value): 在当前写索引写入一个中等长度整数，并递增写索引。
+     *      ByteBuf writeLong(long value): 在当前写索引写入一个长整型数据，并递增写索引。
+     *      ByteBuf writeBytes(ByteBuf src): 将数据从另一个 ByteBuf 写入当前写索引位置，并递增写索引。
+     *      ByteBuf writeBytes(byte[] src): 将数据从字节数组写入当前写索引位置，并递增写索引。
+     *
+     * 引用计数方法：
+     *      int refCnt(): 返回 ByteBuf 的引用计数。
+     *      ByteBuf retain(): 增加 ByteBuf 的引用计数。
+     *      ByteBuf retain(int increment): 增加 ByteBuf 的引用计数指定的数值。
+     *      boolean release(): 减少 ByteBuf 的引用计数，并在计数为0时释放 ByteBuf，返回是否还有剩余的引用。
+     *      boolean release(int decrement): 减少 ByteBuf 的引用计数指定的数值，并在计数为0时释放 ByteBuf，返回是否还有剩余的引用。
+     *
+     * 其他重要方法：
+         * ByteBuf clear(): 清除 ByteBuf 的内容，将读索引和写索引重置为0。
+         * ByteBuf markReaderIndex(): 标记当前读索引。
+         * ByteBuf resetReaderIndex(): 重置读索引到最后一次标记的位置。
+         * ByteBuf markWriterIndex(): 标记当前写索引。
+         * ByteBuf resetWriterIndex(): 重置写索引到最后一次标记的位置。
+         * ByteBuf discardReadBytes(): 丢弃已读数据，释放读索引之前的内存。
+         * ByteBuf ensureWritable(int minWritableBytes): 确保 ByteBuf 可写至少 minWritableBytes 个字节，如果需要，会进行扩容。
      */
     public abstract int capacity();
-
-    /**
-     * Adjusts the capacity of this buffer.  If the {@code newCapacity} is less than the current
-     * capacity, the content of this buffer is truncated.  If the {@code newCapacity} is greater
-     * than the current capacity, the buffer is appended with unspecified data whose length is
-     * {@code (newCapacity - currentCapacity)}.
-     *
-     * @throws IllegalArgumentException if the {@code newCapacity} is greater than {@link #maxCapacity()}
-     */
     public abstract ByteBuf capacity(int newCapacity);
-
-    /**
-     * Returns the maximum allowed capacity of this buffer. This value provides an upper
-     * bound on {@link #capacity()}.
-     */
     public abstract int maxCapacity();
 
     /**
@@ -320,34 +351,9 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf>, 
      */
     public abstract ByteBuf asReadOnly();
 
-    /**
-     * Returns the {@code readerIndex} of this buffer.
-     */
     public abstract int readerIndex();
-
-    /**
-     * Sets the {@code readerIndex} of this buffer.
-     *
-     * @throws IndexOutOfBoundsException
-     *         if the specified {@code readerIndex} is
-     *            less than {@code 0} or
-     *            greater than {@code this.writerIndex}
-     */
     public abstract ByteBuf readerIndex(int readerIndex);
-
-    /**
-     * Returns the {@code writerIndex} of this buffer.
-     */
     public abstract int writerIndex();
-
-    /**
-     * Sets the {@code writerIndex} of this buffer.
-     *
-     * @throws IndexOutOfBoundsException
-     *         if the specified {@code writerIndex} is
-     *            less than {@code this.readerIndex} or
-     *            greater than {@code this.capacity}
-     */
     public abstract ByteBuf writerIndex(int writerIndex);
 
     /**
@@ -402,11 +408,6 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf>, 
      *         greater than {@code this.capacity}
      */
     public abstract ByteBuf setIndex(int readerIndex, int writerIndex);
-
-    /**
-     * Returns the number of readable bytes which is equal to
-     * {@code (this.writerIndex - this.readerIndex)}.
-     */
     public abstract int readableBytes();
 
     /**
@@ -430,23 +431,12 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf>, 
         return writableBytes();
     }
 
-    /**
-     * Returns {@code true}
-     * if and only if {@code (this.writerIndex - this.readerIndex)} is greater
-     * than {@code 0}.
-     */
     public abstract boolean isReadable();
 
     /**
      * Returns {@code true} if and only if this buffer contains equal to or more than the specified number of elements.
      */
     public abstract boolean isReadable(int size);
-
-    /**
-     * Returns {@code true}
-     * if and only if {@code (this.capacity - this.writerIndex)} is greater
-     * than {@code 0}.
-     */
     public abstract boolean isWritable();
 
     /**
@@ -566,16 +556,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf>, 
      */
     public abstract boolean getBoolean(int index);
 
-    /**
-     * Gets a byte at the specified absolute {@code index} in this buffer.
-     * This method does not modify {@code readerIndex} or {@code writerIndex} of
-     * this buffer.
-     *
-     * @throws IndexOutOfBoundsException
-     *         if the specified {@code index} is less than {@code 0} or
-     *         {@code index + 1} is greater than {@code this.capacity}
-     */
-    public abstract byte  getByte(int index);
+    public abstract byte getByte(int index);
 
     /**
      * Gets an unsigned byte at the specified absolute {@code index} in this
@@ -587,16 +568,6 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf>, 
      *         {@code index + 1} is greater than {@code this.capacity}
      */
     public abstract short getUnsignedByte(int index);
-
-    /**
-     * Gets a 16-bit short integer at the specified absolute {@code index} in
-     * this buffer.  This method does not modify {@code readerIndex} or
-     * {@code writerIndex} of this buffer.
-     *
-     * @throws IndexOutOfBoundsException
-     *         if the specified {@code index} is less than {@code 0} or
-     *         {@code index + 2} is greater than {@code this.capacity}
-     */
     public abstract short getShort(int index);
 
     /**
@@ -664,7 +635,7 @@ public abstract class ByteBuf implements ReferenceCounted, Comparable<ByteBuf>, 
      *         if the specified {@code index} is less than {@code 0} or
      *         {@code index + 3} is greater than {@code this.capacity}
      */
-    public abstract int   getUnsignedMedium(int index);
+    public abstract int getUnsignedMedium(int index);
 
     /**
      * Gets an unsigned 24-bit medium integer at the specified absolute

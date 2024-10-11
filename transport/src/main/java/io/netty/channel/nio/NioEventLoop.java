@@ -866,6 +866,12 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         return deadlineNanos < nextWakeupNanos.get();
     }
 
+    /**
+     * 返回 Java 原生 NIO Selector 对象
+     *
+     * 每个 NioEventLoop 对象上，都独有一个 Selector 对象
+     * @return
+     */
     Selector unwrappedSelector() {
         return unwrappedSelector;
     }

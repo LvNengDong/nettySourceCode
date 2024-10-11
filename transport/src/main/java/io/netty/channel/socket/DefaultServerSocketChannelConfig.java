@@ -41,6 +41,7 @@ import static io.netty.util.internal.ObjectUtil.checkPositiveOrZero;
 public class DefaultServerSocketChannelConfig extends DefaultChannelConfig
                                               implements ServerSocketChannelConfig {
 
+    /* JDK 原生的 ServerSocket 对象 */
     protected final ServerSocket javaSocket;
     private volatile int backlog = NetUtil.SOMAXCONN;
 

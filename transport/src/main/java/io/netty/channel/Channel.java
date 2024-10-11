@@ -95,7 +95,9 @@ public interface Channel extends AttributeMap, ChannelOutboundInvoker, Comparabl
     Channel parent();
 
     /**
-     * Returns the configuration of this channel.
+     * 返回 Channel 对应的 ChannelConfig 对象
+     * 下面是一些常见的对应关系
+     *      NioServerSocketChannel >> NioServerSocketChannelConfig
      */
     ChannelConfig config();
 

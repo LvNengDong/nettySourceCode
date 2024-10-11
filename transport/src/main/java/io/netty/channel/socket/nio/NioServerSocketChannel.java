@@ -34,6 +34,13 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
                              implements io.netty.channel.socket.ServerSocketChannel {
 
     private static final ChannelMetadata METADATA = new ChannelMetadata(false, 16);
+
+    /**
+     * SelectorProvider.provider() 是 Java NIO 提供的静态方法。它返回一个 SelectorProvider 对象，用于创建和管理 Selector 对象。
+     * SelectorProvider 是一个抽象类，它定义了创建和管理 Selector 对象的方法。
+     * 每个 Java 虚拟机实现都必须提供一个具体的 SelectorProvider 实现类。通过 provider 方法，可以获取到当前平台上可用的 SelectorProvider 实例。
+     * */
+    /* DEFAULT_SELECTOR_PROVIDER 是当前操作系统上可用的 SelectorProvider 实例 */
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
@@ -41,42 +48,46 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     private static final Method OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY =
             SelectorProviderUtil.findOpenMethod("openServerSocketChannel");
 
+    /**
+     * 创建 NIO 的 ServerSocketChannel 对象
+     */
     private static ServerSocketChannel newChannel(SelectorProvider provider, InternetProtocolFamily family) {
         try {
-            ServerSocketChannel channel =
-                    SelectorProviderUtil.newChannel(OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY, provider, family);
+            ServerSocketChannel channel = SelectorProviderUtil.newChannel(OPEN_SERVER_SOCKET_CHANNEL_WITH_FAMILY, provider, family);
+            // provider.openServerSocketChannel() 效果和 ServerSocketChannel#open() 方法创建 ServerSocketChannel 是一致的。
             return channel == null ? provider.openServerSocketChannel() : channel;
         } catch (IOException e) {
             throw new ChannelException("Failed to open a socket.", e);
         }
     }
 
+    /* Channel 对应的配置对象。每种 Channel 实现类，也会对应一个 ChannelConfig 实现类。
+    例如，NioServerSocketChannel 类，对应 ServerSocketChannelConfig 配置类。*/
     private final ServerSocketChannelConfig config;
 
+    /**
+     * 无参构造器
+     *  1、ReflectiveChannelFactory 是使用反射方式通过无参构造器创建的 NioServerSocketChannel 对象
+     * */
     public NioServerSocketChannel() {
         this(DEFAULT_SELECTOR_PROVIDER);
     }
 
-    /**
-     * Create a new instance using the given {@link SelectorProvider}.
-     */
     public NioServerSocketChannel(SelectorProvider provider) {
         this(provider, null);
     }
 
-    /**
-     * Create a new instance using the given {@link SelectorProvider} and protocol family (supported only since JDK 15).
-     */
     public NioServerSocketChannel(SelectorProvider provider, InternetProtocolFamily family) {
         this(newChannel(provider, family));
     }
 
     /**
-     * Create a new instance using the given {@link ServerSocketChannel}.
      * @param channel JDK 底层的 ServerSocketChannel
      */
     public NioServerSocketChannel(ServerSocketChannel channel) {
+        // 调用父 AbstractNioMessageChannel 的构造方法（注意传入的 SelectionKey 的值为 OP_ACCEPT）
         super(null, channel, SelectionKey.OP_ACCEPT);
+        // 初始化 config 属性，创建 NioServerSocketChannelConfig 对象（每种 Channel 实现类，会对应一个 ChannelConfig 实现类）
         config = new NioServerSocketChannelConfig(this, javaChannel().socket());
     }
 
@@ -190,6 +201,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
         throw new UnsupportedOperationException();
     }
 
+    /** 内部类 */
     private final class NioServerSocketChannelConfig extends DefaultServerSocketChannelConfig {
         private NioServerSocketChannelConfig(NioServerSocketChannel channel, ServerSocket javaSocket) {
             super(channel, javaSocket);
@@ -200,6 +212,13 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
             clearReadPending();
         }
 
+        /**
+         * 解析 option 对象并将 option 键值对保存到 Config、javaSocket、NettyChannel 对象中
+         * @param option
+         * @param value
+         * @return
+         * @param <T>
+         */
         @Override
         public <T> boolean setOption(ChannelOption<T> option, T value) {
             if (PlatformDependent.javaVersion() >= 7 && option instanceof NioChannelOption) {

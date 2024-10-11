@@ -50,7 +50,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     private static final InternalLogger logger =
             InternalLoggerFactory.getInstance(AbstractNioChannel.class);
 
+    /* JDK 原生的 Channel 对象 */
     private final SelectableChannel ch;
+
     protected final int readInterestOp;
     volatile SelectionKey selectionKey;
     boolean readPending;
@@ -73,24 +75,21 @@ public abstract class AbstractNioChannel extends AbstractChannel {
      * Create a new instance
      *
      * @param parent            the parent {@link Channel} by which this instance was created. May be {@code null}
-     * @param ch                the underlying {@link SelectableChannel} on which it operates
-     * @param readInterestOp    the ops to set to receive data from the {@link SelectableChannel}
+     * @param ch                Java 原生 NIO 的 Channel 对象
+     * @param readInterestOp    感兴趣的读事件的操作位值。AbstractNioMessageChannel 是 SelectionKey.OP_ACCEPT ， 而 AbstractNioByteChannel 是 SelectionKey.OP_READ
      */
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
-        super(parent);
+        super(parent); // 调用父 AbstractNioChannel 的构造方法
         this.ch = ch;
         this.readInterestOp = readInterestOp;
         try {
-            // 关闭阻塞模式
-            ch.configureBlocking(false);
-        } catch (IOException e) {
+            ch.configureBlocking(false); // 设置 NIO Channel 为非阻塞
+        } catch (IOException e) { // 若发生异常，关闭 NIO Channel ，并抛出异常
             try {
                 ch.close();
             } catch (IOException e2) {
-                logger.warn(
-                            "Failed to close a partially initialized socket.", e2);
+                logger.warn("Failed to close a partially initialized socket.", e2);
             }
-
             throw new ChannelException("Failed to enter non-blocking mode.", e);
         }
     }
@@ -375,7 +374,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
     @Override
     protected boolean isCompatible(EventLoop loop) {
-        return loop instanceof NioEventLoop;
+        return loop instanceof NioEventLoop; // 要求 eventLoop 的类型为 NioEventLoop
     }
 
     @Override
@@ -383,6 +382,9 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
+                // 调用 #javaChannel() 方法，获得 Java 原生 NIO 的 Channel 对象
+                // 调用 #unwrappedSelector() 方法，返回 Java 原生 NIO Selector 对象
+                // 调用 SelectableChannel#register(Selector sel, int ops, Object att) 方法，注册 Java 原生 NIO 的 Channel 对象到 Selector 对象上
                 selectionKey = javaChannel().register(eventLoop().unwrappedSelector(), 0, this);
                 return;
             } catch (CancelledKeyException e) {

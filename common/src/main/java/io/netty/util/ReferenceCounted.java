@@ -1,77 +1,58 @@
-/*
- * Copyright 2013 The Netty Project
- *
- * The Netty Project licenses this file to you under the Apache License,
- * version 2.0 (the "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at:
- *
- *   https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
 package io.netty.util;
 
 /**
- * A reference-counted object that requires explicit deallocation.
- * <p>
- * When a new {@link ReferenceCounted} is instantiated, it starts with the reference count of {@code 1}.
- * {@link #retain()} increases the reference count, and {@link #release()} decreases the reference count.
- * If the reference count is decreased to {@code 0}, the object will be deallocated explicitly, and accessing
- * the deallocated object will usually result in an access violation.
- * </p>
- * <p>
- * If an object that implements {@link ReferenceCounted} is a container of other objects that implement
- * {@link ReferenceCounted}, the contained objects will also be released via {@link #release()} when the container's
- * reference count becomes 0.
- * </p>
+ * >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+ * 简介：
+ * ReferenceCounted 接口是 Netty 中用于实现引用计数功能的核心接口。它允许对象在不再被引用时能够被显式地回收，
+ * 这对于管理如 ByteBuf 这样的资源非常关键，尤其是在处理直接内存（堆外内存）时，因为直接内存的分配和回收比堆内
+ * 存更为昂贵，且不会自动由 JVM 的垃圾回收器管理。
+
+ * >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+ * 工作原理：
+ * 当一个对象实现了 ReferenceCounted 接口，它就具备了引用计数的能力。这个对象的生命周期开始时，引用计数器初始化为1。
+ * 通过调用 retain() 方法可以增加引用计数，而 release() 方法则减少引用计数。如果引用计数减少到0，对象将被显式回收。
+ * 如果尝试访问已经被回收的对象，通常会抛出访问违规异常。
+
+ * >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+ * 应用场景：
+ * 在 Netty 的网络编程中，ByteBuf 对象经常在不同的处理器之间传递。通过引用计数机制，可以确保 ByteBuf 对象在不再
+ * 需要时能够被及时释放，避免内存泄漏。例如，在 ChannelPipeline 中处理消息时，每个处理器处理完消息后，需要根据是
+ * 否继续传递消息来决定是否调用 release() 方法。
+ *
  */
 public interface ReferenceCounted {
     /**
-     * Returns the reference count of this object.  If {@code 0}, it means this object has been deallocated.
+     * 返回对象的引用计数。如果返回0，意味着对象已经被回收。
      */
     int refCnt();
 
     /**
-     * Increases the reference count by {@code 1}.
+     * 将引用计数增加1。
      */
     ReferenceCounted retain();
 
     /**
-     * Increases the reference count by the specified {@code increment}.
+     * 将引用计数增加指定数量。
      */
     ReferenceCounted retain(int increment);
 
     /**
-     * Records the current access location of this object for debugging purposes.
-     * If this object is determined to be leaked, the information recorded by this operation will be provided to you
-     * via {@link ResourceLeakDetector}.  This method is a shortcut to {@link #touch(Object) touch(null)}.
+     * 出于调试目的，用一个额外的任意信息记录这个对象的当前访问地址。如果这个对象被检测到泄露了，这个操作记录的信息将通过 ResourceLeakDetector 提供。
      */
     ReferenceCounted touch();
 
     /**
-     * Records the current access location of this object with an additional arbitrary information for debugging
-     * purposes.  If this object is determined to be leaked, the information recorded by this operation will be
-     * provided to you via {@link ResourceLeakDetector}.
+     * 同上，但允许提供额外的提示信息。
      */
     ReferenceCounted touch(Object hint);
 
     /**
-     * Decreases the reference count by {@code 1} and deallocates this object if the reference count reaches at
-     * {@code 0}.
-     *
-     * @return {@code true} if and only if the reference count became {@code 0} and this object has been deallocated
+     * 将引用计数减一。如果引用计数达到0，则回收这个对象，并返回true；否则返回false。
      */
     boolean release();
 
     /**
-     * Decreases the reference count by the specified {@code decrement} and deallocates this object if the reference
-     * count reaches at {@code 0}.
-     *
-     * @return {@code true} if and only if the reference count became {@code 0} and this object has been deallocated
+     * 将引用计数减少指定数量。如果引用计数达到0，则回收这个对象，并返回true；否则返回false。
      */
     boolean release(int decrement);
 }

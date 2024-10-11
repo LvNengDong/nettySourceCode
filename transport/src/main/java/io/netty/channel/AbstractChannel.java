@@ -45,14 +45,21 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(AbstractChannel.class);
 
+    /* 父 Channel 对象 */
     private final Channel parent;
-    /* Channel 的唯一标识 */
+    /* Channel全局唯一id */
     private final ChannelId id;
 
-    /* TCP 相关的底层读写操作 */
+    /* Unsafe 对象，这里的 Unsafe 并不是我们常说的 Java 自带的sun.misc.Unsafe ，而是 io.netty.channel.Channel#Unsafe
+    按照 Netty Unsafe 的英文注释，Unsafe 操作不允许被用户代码使用。这些函数是真正用于数据传输操作，必须被IO线程调用。
+    实际上，Channel 真正的具体操作，通过调用对应的 Unsafe 实现。
+    Unsafe 不是一个具体的类，而是一个定义在 Channel 接口中的接口。不同的 Channel 类对应不同的 Unsafe 实现类。
+
+        对于 NioServerSocketChannel ，Unsafe 的实现类为 NioMessageUnsafe
+    */
     private final Unsafe unsafe;
 
-    /* 逻辑链路 */
+    /* pipeline 负责业务处理器编排 */
     private final DefaultChannelPipeline pipeline;
     private final VoidChannelPromise unsafeVoidPromise = new VoidChannelPromise(this, false);
     private final CloseFuture closeFuture = new CloseFuture(this);
@@ -60,6 +67,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private volatile SocketAddress localAddress;
     private volatile SocketAddress remoteAddress;
     private volatile EventLoop eventLoop;
+    /* 是否注册 */
     private volatile boolean registered;
     private boolean closeInitiated;
     private Throwable initialCloseCause;
@@ -68,16 +76,13 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private boolean strValActive;
     private String strVal;
 
-    /**
-     * Creates a new instance.
-     *
-     * @param parent
-     *        the parent of this channel. {@code null} if there's no parent.
-     */
     protected AbstractChannel(Channel parent) {
         this.parent = parent;
+        // 创建 ChannelId 对象
         id = newId();
+        // 创建 Unsafe 对象
         unsafe = newUnsafe();
+        // 创建 DefaultChannelPipeline 对象（初始化状态，pipeline 的内部结构只包含头尾两个节点）
         pipeline = newChannelPipeline();
     }
 
@@ -111,10 +116,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         return id;
     }
 
-    /**
-     * Returns a new {@link DefaultChannelId} instance. Subclasses may override this method to assign custom
-     * {@link ChannelId}s to {@link Channel}s that use the {@link AbstractChannel#AbstractChannel(Channel)} constructor.
-     */
+
     protected ChannelId newId() {
         return DefaultChannelId.newInstance();
     }
@@ -437,7 +439,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         private volatile ChannelOutboundBuffer outboundBuffer = new ChannelOutboundBuffer(AbstractChannel.this);
         private RecvByteBufAllocator.Handle recvHandle;
         private boolean inFlush0;
-        /** true if the channel has never been registered, false otherwise */
+        /** 是否从未注册过，用于标记首次注册 */
         private boolean neverRegistered = true;
 
         private void assertEventLoop() {
@@ -467,21 +469,28 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             return remoteAddress0();
         }
 
+        /**
+         * 将一个 Channel 注册到一个 eventLoop 上
+         *
+         * Netty 会在线程池 EventLoopGroup 中选择一个 EventLoop 与当前 Channel 进行绑定，之后 Channel 生命周期内的所有 I/O 事件都由这个 EventLoop 负责处理，如 accept、connect、read、write 等 I/O 事件。
+         * @param eventLoop
+         * @param promise
+         */
         @Override
         public final void register(EventLoop eventLoop, final ChannelPromise promise) {
             ObjectUtil.checkNotNull(eventLoop, "eventLoop");
-            if (isRegistered()) {
+            if (isRegistered()) { // 校验重复注册
                 promise.setFailure(new IllegalStateException("registered to an event loop already"));
                 return;
             }
-            if (!isCompatible(eventLoop)) {
-                promise.setFailure(
-                        new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
+            if (!isCompatible(eventLoop)) { // 校验 Channel 和 eventLoop 类型是否匹配，因为它们都有多种实现类型。
+                promise.setFailure(new IllegalStateException("incompatible event loop type: " + eventLoop.getClass().getName()));
                 return;
             }
-
+            // 设置 Channel 的 eventLoop 属性
             AbstractChannel.this.eventLoop = eventLoop;
 
+            // 在 EventLoop 中执行注册逻辑
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
@@ -492,13 +501,11 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                             register0(promise);
                         }
                     });
-                } catch (Throwable t) {
-                    logger.warn(
-                            "Force-closing a channel whose registration task was not accepted by an event loop: {}",
-                            AbstractChannel.this, t);
-                    closeForcibly();
-                    closeFuture.setClosed();
-                    safeSetFailure(promise, t);
+                } catch (Throwable t) { // 若调用 EventLoop#execute(Runnable) 方法发生异常，则进行处理
+                    logger.warn("Force-closing a channel whose registration task was not accepted by an event loop: {}", AbstractChannel.this, t);
+                    closeForcibly(); // 强制关闭 Channel
+                    closeFuture.setClosed(); // 通知 closeFuture 已经关闭
+                    safeSetFailure(promise, t); // 调用 AbstractUnsafe#safeSetFailure(ChannelPromise promise, Throwable cause) 方法，回调通知 promise 发生该异常。
                 }
             }
         }
@@ -510,16 +517,24 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 if (!promise.setUncancellable() || !ensureOpen(promise)) {
                     return;
                 }
+                // 记录是否为首次注册（默认值为true）
                 boolean firstRegistration = neverRegistered;
+                // 执行注册逻辑
                 doRegister();
+                // 标记首次注册为 false
                 neverRegistered = false;
+                // 标记 Channel 为已注册
                 registered = true;
 
                 // Ensure we call handlerAdded(...) before we actually notify the promise. This is needed as the
                 // user may already fire events through the pipeline in the ChannelFutureListener.
+                // 触发 ChannelInitializer 执行，进行 Handler 初始化。
                 pipeline.invokeHandlerAddedIfNeeded();
 
+                // 回调通知 `promise` 执行成功，在 「3.13.1 doBind」 小节，我们向 regFuture 注册的 ChannelFutureListener ，就会被立即回调执行。
                 safeSetSuccess(promise);
+
+                // 触发通知已注册事件
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
@@ -979,11 +994,14 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             return unsafeVoidPromise;
         }
 
+        /**
+         * 确保 Channel 是打开的
+         * */
         protected final boolean ensureOpen(ChannelPromise promise) {
             if (isOpen()) {
                 return true;
             }
-
+            // 若未打开，回调通知 promise 异常
             safeSetFailure(promise, newClosedChannelException(initialCloseCause, "ensureOpen(ChannelPromise)"));
             return false;
         }
